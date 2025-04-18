@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/cryptopay"
@@ -17,6 +15,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 type Handler struct {
@@ -531,7 +532,11 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 
 			if customer.SubscriptionLink != nil && *customer.SubscriptionLink != "" {
 				subscriptionLinkText := tm.GetText(langCode, "subscription_link")
-				info.WriteString(fmt.Sprintf(subscriptionLinkText, *customer.SubscriptionLink))
+				subscriptionLink := *customer.SubscriptionLink
+				if miniAppLink := config.MiniAppLink(); miniAppLink != "" {
+					subscriptionLink = miniAppLink
+				}
+				info.WriteString(fmt.Sprintf(subscriptionLinkText, subscriptionLink))
 			}
 		} else {
 			noSubscriptionText := tm.GetText(langCode, "no_subscription")

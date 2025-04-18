@@ -1,11 +1,12 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type config struct {
@@ -31,7 +32,8 @@ type config struct {
 	channelURL             string
 	serverStatusURL        string
 	supportURL             string
-	tosURL				   string
+	tosURL                 string
+	miniAppLink            string
 	isYookasaEnabled       bool
 	isCryptoEnabled        bool
 	isTelegramStarsEnabled bool
@@ -55,7 +57,7 @@ func IsCountryAllowed(countryCode string) bool {
 	if len(conf.allowedCountries) == 0 {
 		return true
 	}
-	
+
 	// Проверяем наличие кода страны в списке разрешенных
 	for _, code := range conf.allowedCountries {
 		if code == countryCode {
@@ -174,6 +176,10 @@ func GetAdminTelegramId() int64 {
 	return conf.adminTelegramId
 }
 
+func MiniAppLink() string {
+	return conf.miniAppLink
+}
+
 const bytesInGigabyte = 1073741824
 
 func InitConfig() {
@@ -181,6 +187,9 @@ func InitConfig() {
 	if err != nil {
 		slog.Warn("Env file not found")
 	}
+
+	conf.miniAppLink = os.Getenv("MINI_APP_LINK")
+	// MINI_APP_LINK не обязателен, поэтому не проверяем на пустое значение
 
 	conf.adminTelegramId, err = strconv.ParseInt(os.Getenv("ADMIN_TELEGRAM_ID"), 10, 64)
 	if err != nil {

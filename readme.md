@@ -56,6 +56,7 @@ The application requires the following environment variables to be set:
 | `TRIAL_DAYS`             | Number of days for trial subscriptions                                                                               |
 | `INBOUND_UUIDS`          | Comma-separated list of inbound UUIDs to assign to users (e.g., "773db654-a8b2-413a-a50b-75c3536238fd,bc979bdd-f1fa-4d94-8a51-38a0f518a2a2") |
 | `ALLOWED_COUNTRIES`      | Comma-separated list of country codes to show to users (e.g., "US,NL,DE,FR,SG")                                      |
+| `MINI_APP_LINK`          | Optional URL to mini app that will be used instead of subscription link if set                                        |
 
 ## User Interface
 

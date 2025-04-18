@@ -3,8 +3,6 @@ package payment
 import (
 	"context"
 	"fmt"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/cryptopay"
@@ -14,6 +12,9 @@ import (
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"strconv"
 	"time"
+
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 type PaymentService struct {
@@ -85,13 +86,18 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 		return err
 	}
 
+	subscriptionURL := user.SubscriptionURL
+	if miniAppLink := config.MiniAppLink(); miniAppLink != "" {
+		subscriptionURL = miniAppLink
+	}
+
 	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: customer.TelegramID,
 		Text:   s.translation.GetText(customer.Language, "subscription_activated"),
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
-					{Text: s.translation.GetText(customer.Language, "connect_button"), URL: user.SubscriptionURL},
+					{Text: s.translation.GetText(customer.Language, "connect_button"), URL: subscriptionURL},
 				},
 			},
 		},
@@ -260,8 +266,12 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 		return "", err
 	}
 
-	return user.SubscriptionURL, nil
+	subscriptionURL := user.SubscriptionURL
+	if miniAppLink := config.MiniAppLink(); miniAppLink != "" {
+		subscriptionURL = miniAppLink
+	}
 
+	return subscriptionURL, nil
 }
 
 func (s PaymentService) CancelPayment(purchaseId int64) error {
