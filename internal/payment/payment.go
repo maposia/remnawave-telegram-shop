@@ -25,6 +25,7 @@ type PaymentService struct {
 	translation        *translation.Manager
 	cryptoPayClient    *cryptopay.Client
 	yookasaClient      *yookasa.Client
+	referralRepository *database.ReferralRepository
 }
 
 func NewPaymentService(
@@ -35,6 +36,7 @@ func NewPaymentService(
 	telegramBot *bot.Bot,
 	cryptoPayClient *cryptopay.Client,
 	yookasaClient *yookasa.Client,
+	referralRepository *database.ReferralRepository,
 ) *PaymentService {
 	return &PaymentService{
 		purchaseRepository: purchaseRepository,
@@ -44,6 +46,7 @@ func NewPaymentService(
 		translation:        translation,
 		cryptoPayClient:    cryptoPayClient,
 		yookasaClient:      yookasaClient,
+		referralRepository: referralRepository,
 	}
 }
 
@@ -105,6 +108,41 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 	if err != nil {
 		return err
 	}
+
+	referee, err := s.referralRepository.FindByReferee(ctx, customer.TelegramID)
+	if referee == nil {
+		return nil
+	}
+	if referee.BonusGranted {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctx, referee.ReferrerID)
+	if err != nil {
+		return err
+	}
+	_, err = s.remnawaveClient.CreateOrUpdateUser(ctx, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays())
+	if err != nil {
+		return err
+	}
+	err = s.referralRepository.MarkBonusGranted(ctx, referee.ID)
+	if err != nil {
+		return err
+	}
+	slog.Info("Granted referral bonus", "customer_id", refereeCustomer.ID)
+	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: refereeCustomer.TelegramID,
+		Text:   s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{Text: s.translation.GetText(refereeCustomer.Language, "connect_button"), URL: user.SubscriptionURL},
+				},
+			},
+		},
+	})
 
 	return nil
 }

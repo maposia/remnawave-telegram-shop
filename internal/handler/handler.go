@@ -28,6 +28,7 @@ type Handler struct {
 	translation        *translation.Manager
 	paymentService     *payment.PaymentService
 	syncService        *sync.SyncService
+	referralRepository *database.ReferralRepository
 }
 
 func NewHandler(
@@ -37,7 +38,7 @@ func NewHandler(
 	customerRepository *database.CustomerRepository,
 	purchaseRepository *database.PurchaseRepository,
 	cryptoPayClient *cryptopay.Client,
-	yookasaClient *yookasa.Client) *Handler {
+	yookasaClient *yookasa.Client, referralRepository *database.ReferralRepository) *Handler {
 	return &Handler{
 		syncService:        syncService,
 		paymentService:     paymentService,
@@ -46,6 +47,7 @@ func NewHandler(
 		cryptoPayClient:    cryptoPayClient,
 		yookasaClient:      yookasaClient,
 		translation:        translation,
+		referralRepository: referralRepository,
 	}
 }
 
@@ -57,7 +59,32 @@ const (
 	CallbackPayment       = "payment"
 	CallbackTrial         = "trial"
 	CallbackActivateTrial = "activate_trial"
+	CallbackReferral      = "referral"
 )
+
+func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
+	langCode := update.CallbackQuery.From.LanguageCode
+	refCode := customer.TelegramID
+	refLink := fmt.Sprintf("https://t.me/%s?start=ref_%d", update.CallbackQuery.Message.Message.From.Username, refCode)
+	count, err := h.referralRepository.CountByReferrer(ctx, customer.TelegramID)
+	if err != nil {
+		slog.Error("error counting referrals", err)
+	}
+	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), refLink, count)
+	callbackMessage := update.CallbackQuery.Message.Message
+	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    callbackMessage.Chat.ID,
+		MessageID: callbackMessage.ID,
+		Text:      text,
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: [][]models.InlineKeyboardButton{{
+			{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+		}}},
+	})
+	if err != nil {
+		slog.Error("Error sending referral message", err)
+	}
+}
 
 func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -78,6 +105,26 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 			return
 		}
 		slog.Info("user created", "telegramId", update.Message.Chat.ID)
+
+		if update.Message.Text != "" {
+			arg := strings.Split(update.Message.Text, " ")[1]
+			if strings.HasPrefix(arg, "ref_") {
+				code := strings.TrimPrefix(arg, "ref_")
+				referrerId, err := strconv.ParseInt(code, 10, 64)
+				if err != nil {
+					slog.Error("error parsing referrer id", err)
+				}
+				_, err = h.customerRepository.FindByTelegramId(ctx, referrerId)
+				if err == nil {
+					_, err := h.referralRepository.Create(ctx, referrerId, existingCustomer.TelegramID)
+					if err != nil {
+						slog.Error("error creating referral", err)
+					}
+					slog.Info("referral created", "referrerId", referrerId, "refereeId", existingCustomer.TelegramID)
+				}
+			}
+		}
+
 	} else {
 		updates := map[string]interface{}{
 			"language": langCode,
@@ -101,6 +148,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
 		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
+		{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"}},
 	}...)
 
 	if config.ServerStatusURL() != "" {
@@ -252,6 +300,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
 		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
+		{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"}},
 	}...)
 
 	if config.ServerStatusURL() != "" {

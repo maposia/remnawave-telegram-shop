@@ -51,6 +51,7 @@ func main() {
 
 	customerRepository := database.NewCustomerRepository(pool)
 	purchaseRepository := database.NewPurchaseRepository(pool)
+	referralRepository := database.NewReferralRepository(pool)
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
@@ -61,7 +62,7 @@ func main() {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
 	if cronScheduler != nil {
@@ -77,7 +78,7 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient)
+	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -87,7 +88,6 @@ func main() {
 	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Начать работу с ботом"},
-			{Command: "connect", Description: "Подключиться к VPN"},
 		},
 		LanguageCode: "ru",
 	})
@@ -95,17 +95,17 @@ func main() {
 	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Start using the bot"},
-			{Command: "connect", Description: "Connect to VPN"},
 		},
 		LanguageCode: "en",
 	})
 
 	config.SetBotURL(fmt.Sprintf("https://t.me/%s", me.Username))
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, h.StartCommandHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, h.StartCommandHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, h.ConnectCommandHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, h.SyncUsersCommandHandler, isAdminMiddleware)
 
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler)
@@ -179,7 +179,7 @@ func initCountries(ctx context.Context, remnawaveClient *remnawave.Client) {
 	if len(uniqueCountries) == 0 {
 		slog.Warn("No countries match the filter criteria or no active nodes found",
 			"allowedCountries", config.AllowedCountries())
-		
+
 		// Повторяем цикл, но без проверки разрешенных стран (показываем все страны)
 		for _, node := range *nodes {
 			if !node.IsDisabled && node.IsNodeOnline {
@@ -188,12 +188,12 @@ func initCountries(ctx context.Context, remnawaveClient *remnawave.Client) {
 				uniqueCountries[node.CountryCode] = countryText
 			}
 		}
-		
-		slog.Info("Showing all available countries as fallback", 
+
+		slog.Info("Showing all available countries as fallback",
 			"countriesCount", len(uniqueCountries))
 	} else {
-		slog.Info("Countries filtered successfully", 
-			"allowedCountries", config.AllowedCountries(), 
+		slog.Info("Countries filtered successfully",
+			"allowedCountries", config.AllowedCountries(),
 			"activeCountriesCount", len(uniqueCountries))
 	}
 

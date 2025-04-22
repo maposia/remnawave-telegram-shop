@@ -28,5 +28,9 @@
   "trial_button": "🔥 Try for free",
   "trial_activated": "Trial period activated",
   "trial_text": "Your trial version is active",
-  "activate_trial_button": "Activate trial version"
+  "activate_trial_button": "Activate trial version",
+  "referral_button": "🤝 Referrals",
+  "referral_text": "Your link: %s\nInvited: %d",
+  "referral_bonus_granted": "You have received a referral bonus!"
+
 }

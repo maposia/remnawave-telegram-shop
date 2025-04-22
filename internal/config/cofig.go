@@ -40,8 +40,9 @@ type config struct {
 	adminTelegramId        int64
 	trialDays              int
 	trialTrafficLimit      int64
-	inboundUUIDs           []string // Изменено: UUID вместо тегов для фильтрации inbounds
-	allowedCountries       []string // Добавлено: массив кодов стран для фильтрации
+	inboundUUIDs           []string
+	allowedCountries       []string
+	referralDays           int
 }
 
 var conf config
@@ -49,6 +50,10 @@ var conf config
 // Добавлена функция получения списка разрешенных стран
 func AllowedCountries() []string {
 	return conf.allowedCountries
+}
+
+func GetReferralDays() int {
+	return conf.referralDays
 }
 
 // Добавлена функция проверки, разрешена ли страна
@@ -312,6 +317,11 @@ func InitConfig() {
 		panic(err)
 	}
 	conf.trafficLimit = int64(limit)
+
+	conf.referralDays, err = strconv.Atoi(os.Getenv("REFERRAL_DAYS"))
+	if err != nil {
+		panic("REFERRAL_DAYS .env variable not set")
+	}
 
 	conf.serverStatusURL = os.Getenv("SERVER_STATUS_URL")
 	conf.supportURL = os.Getenv("SUPPORT_URL")
