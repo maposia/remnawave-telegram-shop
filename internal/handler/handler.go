@@ -106,7 +106,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		}
 		slog.Info("user created", "telegramId", update.Message.Chat.ID)
 
-		if update.Message.Text != "" {
+		if strings.Contains(update.Message.Text, "ref_") {
 			arg := strings.Split(update.Message.Text, " ")[1]
 			if strings.HasPrefix(arg, "ref_") {
 				code := strings.TrimPrefix(arg, "ref_")

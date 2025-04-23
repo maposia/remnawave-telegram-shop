@@ -24,36 +24,38 @@ purchase and manage subscriptions through Telegram with multiple payment system 
 
 The application requires the following environment variables to be set:
 
-| Variable                 | Description                                                                                                          |
-|--------------------------|----------------------------------------------------------------------------------------------------------------------| 
-| `PRICE_1`                | Price for 1 month                                                                                                    |
-| `PRICE_3`                | Price for 3 month                                                                                                    |
-| `PRICE_6`                | Price for 6 month                                                                                                    |
-| `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                         |
-| `DATABASE_URL`           | PostgreSQL connection string                                                                                         |
-| `POSTGRES_USER`          | PostgreSQL username                                                                                                  |
-| `POSTGRES_PASSWORD`      | PostgreSQL password                                                                                                  |
-| `POSTGRES_DB`            | PostgreSQL database name                                                                                             |
-| `REMNAWAVE_URL`          | Remnawave API URL                                                                                                    |
-| `REMNAWAVE_MODE`         | Remnawave mode (remote/local), default is remote. If local set – you can pass http://remnawave:3000 to REMNAWAVE_URL |
-| `REMNAWAVE_TOKEN`        | Authentication token for Remnawave API                                                                               |
-| `CRYPTO_PAY_ENABLED`     | Enable/disable CryptoPay payment method (true/false)                                                                 |
-| `CRYPTO_PAY_TOKEN`       | CryptoPay API token                                                                                                  |
-| `CRYPTO_PAY_URL`         | CryptoPay API URL                                                                                                    |
-| `YOOKASA_ENABLED`        | Enable/disable YooKassa payment method (true/false)                                                                  |
-| `YOOKASA_SECRET_KEY`     | YooKassa API secret key                                                                                              |
-| `YOOKASA_SHOP_ID`        | YooKassa shop identifier                                                                                             |
-| `YOOKASA_URL`            | YooKassa API URL                                                                                                     |
-| `YOOKASA_EMAIL`          | Email address associated with YooKassa account                                                                       |
-| `TRAFFIC_LIMIT`          | Maximum allowed traffic in gb (0 to set unlimited)                                                                   |
-| `TELEGRAM_STARS_ENABLED` | Enable/disable Telegram Stars payment method (true/false)                                                            |
-| `SERVER_STATUS_URL`      | URL to server status page (optional) - if not set, button will not be displayed                                      |
-| `SUPPORT_URL`            | URL to support chat or page (optional) - if not set, button will not be displayed                                    |
-| `FEEDBACK_URL`           | URL to feedback/reviews page (optional) - if not set, button will not be displayed                                   |
-| `CHANNEL_URL`            | URL to Telegram channel (optional) - if not set, button will not be displayed                                        |
-| `ADMIN_TELEGRAM_ID`      | Admin telegram id                                                                                                    |
-| `TRIAL_TRAFFIC_LIMIT`    | Maximum allowed traffic in gb for trial subscriptions                                                                |     
-| `TRIAL_DAYS`             | Number of days for trial subscriptions                                                                               |
+| Variable                 | Description                                                                                                                                  |
+|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------| 
+| `PRICE_1`                | Price for 1 month                                                                                                                            |
+| `PRICE_3`                | Price for 3 month                                                                                                                            |
+| `PRICE_6`                | Price for 6 month                                                                                                                            |
+| `PRICE_12`               | Price for 12 month                                                                                                                           |
+| `REFERRAL_DAYS`          | Refferal days                                                                                                                                |
+| `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                                                 |
+| `DATABASE_URL`           | PostgreSQL connection string                                                                                                                 |
+| `POSTGRES_USER`          | PostgreSQL username                                                                                                                          |
+| `POSTGRES_PASSWORD`      | PostgreSQL password                                                                                                                          |
+| `POSTGRES_DB`            | PostgreSQL database name                                                                                                                     |
+| `REMNAWAVE_URL`          | Remnawave API URL                                                                                                                            |
+| `REMNAWAVE_MODE`         | Remnawave mode (remote/local), default is remote. If local set – you can pass http://remnawave:3000 to REMNAWAVE_URL                         |
+| `REMNAWAVE_TOKEN`        | Authentication token for Remnawave API                                                                                                       |
+| `CRYPTO_PAY_ENABLED`     | Enable/disable CryptoPay payment method (true/false)                                                                                         |
+| `CRYPTO_PAY_TOKEN`       | CryptoPay API token                                                                                                                          |
+| `CRYPTO_PAY_URL`         | CryptoPay API URL                                                                                                                            |
+| `YOOKASA_ENABLED`        | Enable/disable YooKassa payment method (true/false)                                                                                          |
+| `YOOKASA_SECRET_KEY`     | YooKassa API secret key                                                                                                                      |
+| `YOOKASA_SHOP_ID`        | YooKassa shop identifier                                                                                                                     |
+| `YOOKASA_URL`            | YooKassa API URL                                                                                                                             |
+| `YOOKASA_EMAIL`          | Email address associated with YooKassa account                                                                                               |
+| `TRAFFIC_LIMIT`          | Maximum allowed traffic in gb (0 to set unlimited)                                                                                           |
+| `TELEGRAM_STARS_ENABLED` | Enable/disable Telegram Stars payment method (true/false)                                                                                    |
+| `SERVER_STATUS_URL`      | URL to server status page (optional) - if not set, button will not be displayed                                                              |
+| `SUPPORT_URL`            | URL to support chat or page (optional) - if not set, button will not be displayed                                                            |
+| `FEEDBACK_URL`           | URL to feedback/reviews page (optional) - if not set, button will not be displayed                                                           |
+| `CHANNEL_URL`            | URL to Telegram channel (optional) - if not set, button will not be displayed                                                                |
+| `ADMIN_TELEGRAM_ID`      | Admin telegram id                                                                                                                            |
+| `TRIAL_TRAFFIC_LIMIT`    | Maximum allowed traffic in gb for trial subscriptions                                                                                        |     
+| `TRIAL_DAYS`             | Number of days for trial subscriptions                                                                                                       |
 | `INBOUND_UUIDS`          | Comma-separated list of inbound UUIDs to assign to users (e.g., "773db654-a8b2-413a-a50b-75c3536238fd,bc979bdd-f1fa-4d94-8a51-38a0f518a2a2") |
 | `ALLOWED_COUNTRIES`      | Comma-separated list of country codes to show to users (e.g., "US,NL,DE,FR,SG")                                      |
 | `MINI_APP_LINK`          | Optional URL to mini app that will be used instead of subscription link if set                                        |

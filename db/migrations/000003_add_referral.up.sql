@@ -1,3 +1,48 @@
+BEGIN;
+
+ALTER TABLE purchase
+DROP CONSTRAINT IF EXISTS purchase_customer_id_fkey;
+ALTER TABLE purchase
+    ADD CONSTRAINT purchase_customer_id_fkey
+        FOREIGN KEY (customer_id)
+            REFERENCES customer(id)
+            DEFERRABLE INITIALLY DEFERRED;
+
+SET CONSTRAINTS purchase_customer_id_fkey DEFERRED;
+
+CREATE TEMP TABLE tmp_duplicates ON COMMIT DROP AS
+SELECT telegram_id
+FROM customer
+GROUP BY telegram_id
+HAVING COUNT(*) > 1;
+
+CREATE TEMP TABLE tmp_keepers ON COMMIT DROP AS
+SELECT DISTINCT ON (c.telegram_id)
+    c.telegram_id,
+    c.id AS keep_id
+FROM customer c
+    JOIN tmp_duplicates d ON c.telegram_id = d.telegram_id
+ORDER BY c.telegram_id, c.expire_at DESC, c.id ASC;
+
+CREATE TEMP TABLE tmp_others ON COMMIT DROP AS
+SELECT c.id AS old_id,
+       k.keep_id
+FROM customer c
+         JOIN tmp_keepers k ON c.telegram_id = k.telegram_id
+WHERE c.id <> k.keep_id;
+
+UPDATE purchase p
+SET customer_id = o.keep_id
+    FROM tmp_others o
+WHERE p.customer_id = o.old_id;
+
+DELETE FROM customer c
+    USING tmp_others o
+WHERE c.id = o.old_id;
+
+COMMIT;
+
+
 ALTER TABLE customer DROP CONSTRAINT IF EXISTS customer_telegram_id_unique;
 
 ALTER TABLE customer ADD CONSTRAINT customer_telegram_id_unique UNIQUE (telegram_id);

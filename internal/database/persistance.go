@@ -23,8 +23,7 @@ type MigrationConfig struct {
 }
 
 func RunMigrations(ctx context.Context, migrationConfig *MigrationConfig, pool *pgxpool.Pool) error {
-	err := pool.Ping(ctx)
-	if err != nil {
+	if err := pool.Ping(ctx); err != nil {
 		return err
 	}
 
@@ -32,7 +31,6 @@ func RunMigrations(ctx context.Context, migrationConfig *MigrationConfig, pool *
 	if err != nil {
 		return fmt.Errorf("invalid migrations path: %w", err)
 	}
-
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		return fmt.Errorf("migrations directory does not exist: %s", absPath)
 	}
@@ -50,52 +48,76 @@ func RunMigrations(ctx context.Context, migrationConfig *MigrationConfig, pool *
 
 	m, err := migrate.NewWithDatabaseInstance(
 		fmt.Sprintf("file://%s", absPath),
-		"postgres", driver)
+		"postgres", driver,
+	)
 	if err != nil {
 		return fmt.Errorf("migration initialization failed: %w", err)
 	}
 
+	version, dirty, verErr := m.Version()
+	if verErr != nil && verErr != migrate.ErrNilVersion {
+		return fmt.Errorf("failed to get migration version: %w", verErr)
+	}
+
+	if dirty && version == 3 {
+		slog.Warn("Detected dirty migration at version 3: forcing pointer and running down script")
+
+		// Снимаем dirty, устанавливая pointer на ту же версию без исполнения SQL
+		if err := m.Force(int(version)); err != nil {
+			return fmt.Errorf("failed to force migration version: %w", err)
+		}
+
+		// Шаг назад, выполняя именно down-скрипт 3 → 2
+		if err := m.Steps(-1); err != nil && err != migrate.ErrNoChange {
+			return fmt.Errorf("failed to run down migration: %w", err)
+		}
+
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			return fmt.Errorf("failed to re-apply migrations: %w", err)
+		}
+
+		slog.Info("Down + re-Up completed successfully")
+		return nil
+	}
+
+	var migErr error
 	switch migrationConfig.Direction {
 	case "up":
 		if migrationConfig.Steps > 0 {
-			err = m.Steps(migrationConfig.Steps)
+			migErr = m.Steps(migrationConfig.Steps)
 		} else {
-			err = m.Up()
+			migErr = m.Up()
 		}
 	case "down":
 		if migrationConfig.Steps > 0 {
-			err = m.Steps(-migrationConfig.Steps)
+			migErr = m.Steps(-migrationConfig.Steps)
 		} else {
-			err = m.Down()
+			migErr = m.Down()
 		}
 	case "force":
 		if migrationConfig.Steps < 0 {
 			return errors.New("version cannot be negative for force command")
 		}
-		err = m.Force(migrationConfig.Steps)
+		migErr = m.Force(migrationConfig.Steps)
 	default:
-		version, dirty, dbErr := m.Version()
+		v, d, dbErr := m.Version()
 		if dbErr != nil && dbErr != migrate.ErrNilVersion {
 			return fmt.Errorf("failed to get migration version: %w", dbErr)
 		}
-
-		slog.Info("Current migration version", "version", version, "dirty", dirty)
+		slog.Info("Current migration version", "version", v, "dirty", d)
 		return nil
 	}
 
-	if err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("migration failed: %w", err)
+	if migErr != nil && migErr != migrate.ErrNoChange {
+		return fmt.Errorf("migration failed: %w", migErr)
 	}
-
-	if errors.Is(err, migrate.ErrNoChange) {
+	if errors.Is(migErr, migrate.ErrNoChange) {
 		slog.Info("No migrations to apply")
 	} else {
 		slog.Info("Migrations completed successfully")
 	}
-
 	return nil
 }
-
 func GetMigrationVersion(migrationsPath string) (uint, bool, error) {
 	db, err := sql.Open("postgres", config.DadaBaseUrl())
 	if err != nil {
