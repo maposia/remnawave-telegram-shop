@@ -148,8 +148,13 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
 		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
-		{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"}},
 	}...)
+
+	if config.GetReferralDays() > 0 {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"},
+		})
+	}
 
 	if config.ServerStatusURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
@@ -300,8 +305,13 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
 		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
-		{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"}},
 	}...)
+
+	if config.GetReferralDays() > 0 {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"},
+		})
+	}
 
 	if config.ServerStatusURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
@@ -350,29 +360,56 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	callback := update.CallbackQuery.Message.Message
 	langCode := update.CallbackQuery.From.LanguageCode
 
+	var priceButtons []models.InlineKeyboardButton
+
+	if config.Price1() > 0 {
+		priceButtons = append(priceButtons, models.InlineKeyboardButton{
+			Text:         h.translation.GetText(langCode, "month_1"),
+			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 1, config.Price1()),
+		})
+	}
+
+	if config.Price3() > 0 {
+		priceButtons = append(priceButtons, models.InlineKeyboardButton{
+			Text:         h.translation.GetText(langCode, "month_3"),
+			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 3, config.Price3()),
+		})
+	}
+
+	if config.Price6() > 0 {
+		priceButtons = append(priceButtons, models.InlineKeyboardButton{
+			Text:         h.translation.GetText(langCode, "month_6"),
+			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 6, config.Price6()),
+		})
+	}
+
+	if config.Price12() > 0 {
+		priceButtons = append(priceButtons, models.InlineKeyboardButton{
+			Text:         h.translation.GetText(langCode, "month_12"),
+			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 12, config.Price12()),
+		})
+	}
+
+	keyboard := [][]models.InlineKeyboardButton{}
+
+	if len(priceButtons) > 0 {
+		keyboard = append(keyboard, priceButtons)
+	}
+
+	keyboard = append(keyboard, []models.InlineKeyboardButton{
+		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+	})
+
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
 		ParseMode: models.ParseModeMarkdown,
 		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{Text: h.translation.GetText(langCode, "month_1"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 1, config.Price1())},
-					{Text: h.translation.GetText(langCode, "month_3"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 3, config.Price3())},
-					{Text: h.translation.GetText(langCode, "month_6"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 6, config.Price6())},
-					{Text: h.translation.GetText(langCode, "month_12"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 12, config.Price12())},
-				},
-				{
-					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
-				},
-			},
+			InlineKeyboard: keyboard,
 		},
-		Text: fmt.Sprintf(h.translation.GetText(langCode, "pricing_info"),
-			config.Price1(),
-			config.Price3(),
-			config.Price6(),
-			config.Price12()),
+		Text: h.translation.GetText(langCode, "pricing_info"),
 	})
+
 	if err != nil {
 		slog.Error("Error sending buy message", err)
 	}
@@ -487,9 +524,13 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 
 	langCode := update.Message.From.LanguageCode
 
+	isDisabled := true
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
 		Text:   buildConnectText(customer, langCode),
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &isDisabled,
+		},
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
@@ -515,10 +556,14 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 
 	langCode := update.CallbackQuery.From.LanguageCode
 
+	isDisabled := true
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
 		Text:      buildConnectText(customer, langCode),
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &isDisabled,
+		},
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},

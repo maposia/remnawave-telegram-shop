@@ -280,6 +280,9 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount int, m
 }
 
 func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (string, error) {
+	if config.TrialDays() == 0 {
+		return "", nil
+	}
 	customer, err := s.customerRepository.FindByTelegramId(ctx, telegramId)
 	if err != nil {
 		slog.Error("Error finding customer", err)

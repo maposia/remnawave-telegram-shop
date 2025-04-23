@@ -30,7 +30,7 @@ The application requires the following environment variables to be set:
 | `PRICE_3`                | Price for 3 month                                                                                                                            |
 | `PRICE_6`                | Price for 6 month                                                                                                                            |
 | `PRICE_12`               | Price for 12 month                                                                                                                           |
-| `REFERRAL_DAYS`          | Refferal days                                                                                                                                |
+| `REFERRAL_DAYS`          | Refferal days. if 0, then disabled.                                                                                                          |
 | `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                                                 |
 | `DATABASE_URL`           | PostgreSQL connection string                                                                                                                 |
 | `POSTGRES_USER`          | PostgreSQL username                                                                                                                          |
