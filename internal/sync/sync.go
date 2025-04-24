@@ -35,17 +35,27 @@ func (s SyncService) Sync() {
 		}
 
 		var telegramIDs []int64
+		telegramIDsSet := make(map[int64]int64)
+
 		var mappedUsers []database.Customer
 		for _, user := range usersResponse.Users {
 			if user.TelegramId == nil {
 				continue
 			}
+			if _, exists := telegramIDsSet[*user.TelegramId]; exists {
+				continue
+			}
+
 			customer, err := mapUserToCustomer(user)
 			if err != nil {
 				slog.Error("Error while mapping user from remnawave")
 				continue
 			}
+
+			telegramIDsSet[*user.TelegramId] = *user.TelegramId
+
 			telegramIDs = append(telegramIDs, customer.TelegramID)
+
 			mappedUsers = append(mappedUsers, customer)
 		}
 
@@ -70,6 +80,12 @@ func (s SyncService) Sync() {
 				toCreate = append(toCreate, cust)
 			}
 		}
+
+		err = s.customerRepository.DeleteByNotInTelegramIds(ctx, telegramIDs)
+		if err != nil {
+			slog.Error("Error while deleting users")
+		}
+		slog.Info("Deleted clients which not exist in panel")
 
 		if len(toCreate) > 0 {
 			if err := s.customerRepository.CreateBatch(ctx, toCreate); err != nil {

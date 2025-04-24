@@ -66,20 +66,26 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
 	refCode := customer.TelegramID
-	refLink := fmt.Sprintf("https://t.me/%s?start=ref_%d", update.CallbackQuery.Message.Message.From.Username, refCode)
+
+	refLink := fmt.Sprintf("https://telegram.me/share/url?url=https://t.me/%s?start=ref_%d", update.CallbackQuery.Message.Message.From.Username, refCode)
 	count, err := h.referralRepository.CountByReferrer(ctx, customer.TelegramID)
 	if err != nil {
 		slog.Error("error counting referrals", err)
 	}
-	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), refLink, count)
+	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), count)
 	callbackMessage := update.CallbackQuery.Message.Message
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    callbackMessage.Chat.ID,
 		MessageID: callbackMessage.ID,
 		Text:      text,
-		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: [][]models.InlineKeyboardButton{{
-			{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
-		}}},
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{Text: h.translation.GetText(langCode, "share_referral_button"), URL: refLink},
+			},
+			{
+				{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+			},
+		}},
 	})
 	if err != nil {
 		slog.Error("Error sending referral message", err)
@@ -147,8 +153,19 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
-		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
 	}...)
+
+	if config.GetMiniAppURL() != "" {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "connect_button"), WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}},
+		})
+	} else {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"},
+		})
+	}
 
 	if config.GetReferralDays() > 0 {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
@@ -221,6 +238,9 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 }
 
 func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	if config.TrialDays() == 0 {
+		return
+	}
 	callback := update.CallbackQuery.Message.Message
 	langCode := update.CallbackQuery.From.LanguageCode
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -241,6 +261,9 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 }
 
 func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	if config.TrialDays() == 0 {
+		return
+	}
 	callback := update.CallbackQuery.Message.Message
 	_, err := h.paymentService.ActivateTrial(ctx, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -274,14 +297,14 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 
 	if existingCustomer == nil {
 		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
-			TelegramID: update.Message.Chat.ID,
+			TelegramID: callback.From.ID,
 			Language:   langCode,
 		})
 		if err != nil {
 			slog.Error("error creating customer", err)
 			return
 		}
-		slog.Info("user created", "telegramId", update.Message.Chat.ID)
+		slog.Info("user created", "telegramId", callback.From.ID)
 	} else {
 		updates := map[string]interface{}{
 			"language": langCode,
@@ -304,8 +327,19 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
-		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
 	}...)
+
+	if config.GetMiniAppURL() != "" {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "connect_button"), WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}},
+		})
+	} else {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"},
+		})
+	}
 
 	if config.GetReferralDays() > 0 {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
@@ -392,7 +426,10 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 
 	keyboard := [][]models.InlineKeyboardButton{}
 
-	if len(priceButtons) > 0 {
+	if len(priceButtons) == 4 {
+		keyboard = append(keyboard, priceButtons[:2])
+		keyboard = append(keyboard, priceButtons[2:])
+	} else if len(priceButtons) > 0 {
 		keyboard = append(keyboard, priceButtons)
 	}
 
@@ -414,7 +451,6 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 		slog.Error("Error sending buy message", err)
 	}
 }
-
 func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)

@@ -6,7 +6,6 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-
 COPY ./cmd/app .
 
 COPY /internal ./internal
@@ -16,7 +15,9 @@ COPY /translations ./translations
 RUN apk update && apk add --no-cache ca-certificates
 RUN update-ca-certificates
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/app .
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /bin/app .
 
 FROM scratch
 
@@ -27,7 +28,6 @@ COPY --from=builder /app/db /db
 COPY --from=builder /app/translations /translations
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
 
 USER 1000
 

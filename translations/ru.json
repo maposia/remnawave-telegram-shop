@@ -30,8 +30,10 @@
   "trial_text": "Ваша пробная версия действует",
   "activate_trial_button": "Активировать пробную версию",
   "referral_button": "🤝 Рефералы",
-  "referral_text": "Ваша ссылка: %s\nПриглашено: %d",
+  "referral_text": "Приглашено: %d",
   "referral_bonus_granted": "Вы получили бонус за реферала!",
-  "stars_button": " ⭐Telegram Stars"
+  "stars_button": " ⭐Telegram Stars",
+  "share_referral_button": "Поделиться!",
+  "web_app_button_text": "🔌 Подключиться"
 
 }

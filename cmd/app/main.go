@@ -85,6 +85,15 @@ func main() {
 		panic(err)
 	}
 
+	_, err = b.SetChatMenuButton(ctx, &bot.SetChatMenuButtonParams{
+		MenuButton: &models.MenuButtonCommands{
+			Type: models.MenuButtonTypeCommands,
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
 	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Начать работу с ботом"},

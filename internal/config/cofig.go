@@ -43,11 +43,11 @@ type config struct {
 	inboundUUIDs           []string
 	allowedCountries       []string
 	referralDays           int
+	miniApp                string
 }
 
 var conf config
 
-// Добавлена функция получения списка разрешенных стран
 func AllowedCountries() []string {
 	return conf.allowedCountries
 }
@@ -56,14 +56,11 @@ func GetReferralDays() int {
 	return conf.referralDays
 }
 
-// Добавлена функция проверки, разрешена ли страна
 func IsCountryAllowed(countryCode string) bool {
-	// Если список разрешенных стран пуст, разрешены все страны
 	if len(conf.allowedCountries) == 0 {
 		return true
 	}
 
-	// Проверяем наличие кода страны в списке разрешенных
 	for _, code := range conf.allowedCountries {
 		if code == countryCode {
 			return true
@@ -72,7 +69,10 @@ func IsCountryAllowed(countryCode string) bool {
 	return false
 }
 
-// Изменено: Функция для получения UUID инбаундов вместо тегов
+func GetMiniAppURL() string {
+	return conf.miniApp
+}
+
 func InboundUUIDs() []string {
 	return conf.inboundUUIDs
 }
@@ -204,6 +204,11 @@ func InitConfig() {
 	conf.telegramToken = os.Getenv("TELEGRAM_TOKEN")
 	if conf.telegramToken == "" {
 		panic("TELEGRAM_TOKEN .env variable not set")
+	}
+
+	conf.miniApp = os.Getenv("MINI_APP_URL")
+	if conf.miniApp == "" {
+		conf.miniApp = ""
 	}
 
 	conf.trialTrafficLimit, err = strconv.ParseInt(os.Getenv("TRIAL_TRAFFIC_LIMIT"), 10, 64)

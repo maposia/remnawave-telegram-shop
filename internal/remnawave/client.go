@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -263,7 +264,15 @@ func (r *Client) GetUserByTelegramId(ctx context.Context, telegramId int64) (*Us
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return &wrapper.Response[0], nil
+	var user User
+	for _, user = range wrapper.Response {
+		if strings.Contains(user.Username, fmt.Sprintf("_%d", telegramId)) {
+			break
+		}
+
+	}
+
+	return &user, nil
 }
 
 func (r *Client) GetUserByUsername(ctx context.Context, username string) (*User, error) {
@@ -468,7 +477,7 @@ func (r *Client) getInbounds(ctx context.Context) *[]Inbound {
 
 	// Получаем список UUID для фильтрации
 	configUUIDs := config.InboundUUIDs()
-	
+
 	// Если UUID не указаны в конфигурации, возвращаем все инбаунды
 	if len(configUUIDs) == 0 {
 		slog.Info("No inbound UUID filter set, using all inbounds")
@@ -490,15 +499,15 @@ func (r *Client) getInbounds(ctx context.Context) *[]Inbound {
 	}
 
 	if len(filteredInbounds) == 0 {
-		slog.Warn("No inbounds match the configured UUIDs, falling back to all inbounds", 
+		slog.Warn("No inbounds match the configured UUIDs, falling back to all inbounds",
 			"configuredUUIDs", configUUIDs)
 		return &wrapper.Response
 	}
 
-	slog.Info("Filtered inbounds by UUIDs", 
-		"totalInbounds", len(wrapper.Response), 
+	slog.Info("Filtered inbounds by UUIDs",
+		"totalInbounds", len(wrapper.Response),
 		"filteredInbounds", len(filteredInbounds),
 		"usedUUIDs", configUUIDs)
-	
+
 	return &filteredInbounds
 }

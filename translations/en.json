@@ -32,6 +32,9 @@
   "referral_button": "🤝 Referrals",
   "referral_text": "Your link: %s\nInvited: %d",
   "referral_bonus_granted": "You have received a referral bonus!",
-  "stars_button": " ⭐Telegram Stars"
+  "stars_button": " ⭐Telegram Stars",
+  "share_referral_button": "Share!",
+  "web_app_button_text": "Connect"
+
 
 }

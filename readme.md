@@ -29,6 +29,7 @@ The application requires the following environment variables to be set:
 | `PRICE_1`                | Price for 1 month                                                                                                                            |
 | `PRICE_3`                | Price for 3 month                                                                                                                            |
 | `PRICE_6`                | Price for 6 month                                                                                                                            |
+| `MINI_APP_URL`           | tg web app url. if empty not be used.                                                                                                        |
 | `PRICE_12`               | Price for 12 month                                                                                                                           |
 | `REFERRAL_DAYS`          | Refferal days. if 0, then disabled.                                                                                                          |
 | `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                                                 |
@@ -131,6 +132,7 @@ The bot supports filtering which countries are displayed to users:
    docker compose pull
    ```
 
+
 2. Restart the containers:
    ```bash
    docker compose down && docker compose up -d
@@ -143,4 +145,8 @@ consider donating. Your support helps drive future updates and improvements.
 
 **Donation Methods:**
 
-- **Ethereum:** `0xd6d35119f8EE2a54Df344E4812A47e1C348ADE1c`
+- **Bep20 USDT:** `0x4D1ee2445fdC88fA49B9d02FB8ee3633f45Bef48`
+
+- **SOL Solana:** `HNQhe6SCoU5UDZicFKMbYjQNv9Muh39WaEWbZayQ9Nn8`
+
+- **TRC20 USDT:** `TBJrguLia8tvydsQ2CotUDTYtCiLDA4nPW`
