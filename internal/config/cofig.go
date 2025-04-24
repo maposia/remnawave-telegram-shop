@@ -33,7 +33,6 @@ type config struct {
 	serverStatusURL        string
 	supportURL             string
 	tosURL                 string
-	miniAppLink            string
 	isYookasaEnabled       bool
 	isCryptoEnabled        bool
 	isTelegramStarsEnabled bool
@@ -181,9 +180,6 @@ func GetAdminTelegramId() int64 {
 	return conf.adminTelegramId
 }
 
-func MiniAppLink() string {
-	return conf.miniAppLink
-}
 
 const bytesInGigabyte = 1073741824
 
@@ -192,9 +188,6 @@ func InitConfig() {
 	if err != nil {
 		slog.Warn("Env file not found")
 	}
-
-	conf.miniAppLink = os.Getenv("MINI_APP_LINK")
-	// MINI_APP_LINK не обязателен, поэтому не проверяем на пустое значение
 
 	conf.adminTelegramId, err = strconv.ParseInt(os.Getenv("ADMIN_TELEGRAM_ID"), 10, 64)
 	if err != nil {

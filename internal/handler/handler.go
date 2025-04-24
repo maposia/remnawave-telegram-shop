@@ -662,11 +662,7 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 
 			if customer.SubscriptionLink != nil && *customer.SubscriptionLink != "" {
 				subscriptionLinkText := tm.GetText(langCode, "subscription_link")
-				subscriptionLink := *customer.SubscriptionLink
-				if miniAppLink := config.MiniAppLink(); miniAppLink != "" {
-					subscriptionLink = miniAppLink
-				}
-				info.WriteString(fmt.Sprintf(subscriptionLinkText, subscriptionLink))
+				info.WriteString(fmt.Sprintf(subscriptionLinkText, *customer.SubscriptionLink))
 			}
 		} else {
 			noSubscriptionText := tm.GetText(langCode, "no_subscription")
