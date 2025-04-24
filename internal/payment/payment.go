@@ -89,18 +89,13 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 		return err
 	}
 
-	subscriptionURL := user.SubscriptionURL
-	if miniAppLink := config.MiniAppLink(); miniAppLink != "" {
-		subscriptionURL = miniAppLink
-	}
-
 	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: customer.TelegramID,
 		Text:   s.translation.GetText(customer.Language, "subscription_activated"),
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
-					{Text: s.translation.GetText(customer.Language, "connect_button"), URL: subscriptionURL},
+					{Text: s.translation.GetText(customer.Language, "connect_button"), URL: user.SubscriptionURL},
 				},
 			},
 		},
@@ -306,6 +301,10 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 	if err != nil {
 		return "", err
 	}
+
+	return user.SubscriptionURL, nil
+
+}
 
 func (s PaymentService) CancelPayment(purchaseId int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

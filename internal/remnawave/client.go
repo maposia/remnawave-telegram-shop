@@ -113,7 +113,6 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 func (r *Client) updateUser(ctx context.Context, existingUser *User, trafficLimit int64, days int) (*User, error) {
 	newExpire := getNewExpire(days, existingUser)
 
-	slog.Info("traffic limit added", "limit", trafficLimit)
 	userUpdate := &UserUpdate{
 		UUID:              existingUser.UUID,
 		ExpireAt:          newExpire,

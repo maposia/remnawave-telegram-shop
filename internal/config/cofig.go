@@ -180,7 +180,6 @@ func GetAdminTelegramId() int64 {
 	return conf.adminTelegramId
 }
 
-
 const bytesInGigabyte = 1073741824
 
 func InitConfig() {

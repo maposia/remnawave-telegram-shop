@@ -131,9 +131,7 @@ func main() {
 	}, h.SuccessPaymentHandler)
 
 	slog.Info("Bot is starting...")
-	slog.Info("Начали")
 	b.Start(ctx)
-
 }
 
 func isAdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
