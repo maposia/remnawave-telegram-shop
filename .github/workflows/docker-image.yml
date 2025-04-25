@@ -81,5 +81,6 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
             ✅ Build finished.
+            🚀 Project: remnawave-telegram-shop-bot
             🛠️ ${{ github.ref_name }}
             📝 Release notes: ${{ steps.tag-message.outputs.message }}
