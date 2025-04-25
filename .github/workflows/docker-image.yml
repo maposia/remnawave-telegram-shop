@@ -83,4 +83,3 @@ jobs:
             ✅ Build finished.
             🛠️ ${{ github.ref_name }}
             📝 Release notes: ${{ steps.tag-message.outputs.message }}
-            📦 Multi-architecture image built for: AMD64, ARM64
