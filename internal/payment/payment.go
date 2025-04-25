@@ -93,11 +93,7 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 		ChatID: customer.TelegramID,
 		Text:   s.translation.GetText(customer.Language, "subscription_activated"),
 		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{Text: s.translation.GetText(customer.Language, "connect_button"), URL: user.SubscriptionURL},
-				},
-			},
+			InlineKeyboard: s.createConnectKeyboard(customer),
 		},
 	})
 	if err != nil {
@@ -118,7 +114,15 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.remnawaveClient.CreateOrUpdateUser(ctx, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays())
+	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays())
+	if err != nil {
+		return err
+	}
+	refereeUserFilesToUpdate := map[string]interface{}{
+		"subscription_link": refereeUser.SubscriptionURL,
+		"expire_at":         refereeUser.ExpireAt,
+	}
+	err = s.customerRepository.UpdateFields(ctx, refereeCustomer.ID, refereeUserFilesToUpdate)
 	if err != nil {
 		return err
 	}
@@ -131,15 +135,32 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 		ChatID: refereeCustomer.TelegramID,
 		Text:   s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
 		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{
-					{Text: s.translation.GetText(refereeCustomer.Language, "connect_button"), URL: user.SubscriptionURL},
-				},
-			},
+			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
 		},
 	})
 
 	return nil
+}
+
+func (s PaymentService) createConnectKeyboard(customer *database.Customer) [][]models.InlineKeyboardButton {
+	var inlineCustomerKeyboard [][]models.InlineKeyboardButton
+
+	if config.GetMiniAppURL() != "" {
+		inlineCustomerKeyboard = append(inlineCustomerKeyboard, []models.InlineKeyboardButton{
+			{Text: s.translation.GetText(customer.Language, "connect_button"), WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}},
+		})
+	} else {
+		inlineCustomerKeyboard = append(inlineCustomerKeyboard, []models.InlineKeyboardButton{
+			{Text: s.translation.GetText(customer.Language, "connect_button"), CallbackData: "connect"},
+		})
+	}
+
+	inlineCustomerKeyboard = append(inlineCustomerKeyboard, []models.InlineKeyboardButton{
+		{Text: s.translation.GetText(customer.Language, "back_button"), CallbackData: "start"},
+	})
+	return inlineCustomerKeyboard
 }
 
 func (s PaymentService) CreatePurchase(ctx context.Context, amount int, months int, customer *database.Customer, invoiceType database.InvoiceType) (string, error) {

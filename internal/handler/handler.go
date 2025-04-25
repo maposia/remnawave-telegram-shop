@@ -130,7 +130,6 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 				}
 			}
 		}
-
 	} else {
 		updates := map[string]interface{}{
 			"language": langCode,
@@ -143,6 +142,91 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		}
 	}
 
+	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+
+	m, err := b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   "🧹",
+		ReplyMarkup: models.ReplyKeyboardRemove{
+			RemoveKeyboard: true,
+		},
+	})
+
+	if err != nil {
+		slog.Error("Error sending removing reply keyboard", err)
+	}
+
+	_, err = b.DeleteMessage(ctx, &bot.DeleteMessageParams{
+		ChatID:    update.Message.Chat.ID,
+		MessageID: m.ID,
+	})
+
+	if err != nil {
+		slog.Error("Error deleting message", err)
+	}
+
+	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    update.Message.Chat.ID,
+		ParseMode: models.ParseModeMarkdown,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: inlineKeyboard,
+		},
+		Text: fmt.Sprintf(h.translation.GetText(langCode, "greeting"), bot.EscapeMarkdown(utils.BuildAvailableCountriesLists(langCode))),
+	})
+	if err != nil {
+		slog.Error("Error sending /start message", err)
+	}
+}
+
+func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
+	callback := update.CallbackQuery
+	langCode := callback.From.LanguageCode
+
+	defer cancel()
+	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, callback.From.ID)
+	if err != nil {
+		slog.Error("error finding customer by telegram id", err)
+	}
+
+	if existingCustomer == nil {
+		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
+			TelegramID: callback.From.ID,
+			Language:   langCode,
+		})
+		if err != nil {
+			slog.Error("error creating customer", err)
+			return
+		}
+		slog.Info("user created", "telegramId", callback.From.ID)
+	} else {
+		updates := map[string]interface{}{
+			"language": langCode,
+		}
+
+		err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
+		if err != nil {
+			slog.Error("Error updating customer", err)
+			return
+		}
+	}
+
+	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+
+	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: callback.Message.Message.Chat.ID,
+		MessageID: callback.Message.Message.ID,
+		ParseMode: models.ParseModeMarkdown,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: inlineKeyboard,
+		},
+		Text: fmt.Sprintf(h.translation.GetText(langCode, "greeting"), bot.EscapeMarkdown(utils.BuildAvailableCountriesLists(langCode))),
+	})
+	if err != nil {
+		slog.Error("Error sending /start message", err)
+	}
+}
+
+func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCode string) [][]models.InlineKeyboardButton {
 	var inlineKeyboard [][]models.InlineKeyboardButton
 
 	if existingCustomer.SubscriptionLink == nil && config.TrialDays() > 0 {
@@ -202,39 +286,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 			{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()},
 		})
 	}
-
-	m, err := b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   "🧹",
-		ReplyMarkup: models.ReplyKeyboardRemove{
-			RemoveKeyboard: true,
-		},
-	})
-
-	if err != nil {
-		slog.Error("Error sending removing reply keyboard", err)
-	}
-
-	_, err = b.DeleteMessage(ctx, &bot.DeleteMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		MessageID: m.ID,
-	})
-
-	if err != nil {
-		slog.Error("Error deleting message", err)
-	}
-
-	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		ParseMode: models.ParseModeMarkdown,
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: inlineKeyboard,
-		},
-		Text: fmt.Sprintf(h.translation.GetText(langCode, "greeting"), bot.EscapeMarkdown(utils.BuildAvailableCountriesLists(langCode))),
-	})
-	if err != nil {
-		slog.Error("Error sending /start message", err)
-	}
+	return inlineKeyboard
 }
 
 func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -281,112 +333,6 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 	})
 	if err != nil {
 		slog.Error("Error sending /trial message", err)
-	}
-}
-
-func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
-	callback := update.CallbackQuery
-	langCode := callback.From.LanguageCode
-
-	defer cancel()
-	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, callback.From.ID)
-	if err != nil {
-		slog.Error("error finding customer by telegram id", err)
-	}
-
-	if existingCustomer == nil {
-		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
-			TelegramID: callback.From.ID,
-			Language:   langCode,
-		})
-		if err != nil {
-			slog.Error("error creating customer", err)
-			return
-		}
-		slog.Info("user created", "telegramId", callback.From.ID)
-	} else {
-		updates := map[string]interface{}{
-			"language": langCode,
-		}
-
-		err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
-		if err != nil {
-			slog.Error("Error updating customer", err)
-			return
-		}
-	}
-
-	var inlineKeyboard [][]models.InlineKeyboardButton
-
-	if existingCustomer.SubscriptionLink == nil && config.TrialDays() > 0 {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "trial_button"), CallbackData: CallbackTrial},
-		})
-	}
-
-	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
-		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
-	}...)
-
-	if config.GetMiniAppURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "connect_button"), WebApp: &models.WebAppInfo{
-				URL: config.GetMiniAppURL(),
-			}},
-		})
-	} else {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"},
-		})
-	}
-
-	if config.GetReferralDays() > 0 {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"},
-		})
-	}
-
-	if config.ServerStatusURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "server_status_button"), URL: config.ServerStatusURL()},
-		})
-	}
-
-	if config.SupportURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "support_button"), URL: config.SupportURL()},
-		})
-	}
-
-	if config.FeedbackURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "feedback_button"), URL: config.FeedbackURL()},
-		})
-	}
-
-	if config.ChannelURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "channel_button"), URL: config.ChannelURL()},
-		})
-	}
-
-	if config.TosURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()},
-		})
-	}
-
-	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: callback.Message.Message.Chat.ID,
-		MessageID: callback.Message.Message.ID,
-		ParseMode: models.ParseModeMarkdown,
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: inlineKeyboard,
-		},
-		Text: fmt.Sprintf(h.translation.GetText(langCode, "greeting"), bot.EscapeMarkdown(utils.BuildAvailableCountriesLists(langCode))),
-	})
-	if err != nil {
-		slog.Error("Error sending /start message", err)
 	}
 }
 
