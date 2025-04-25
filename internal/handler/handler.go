@@ -51,17 +51,6 @@ func NewHandler(
 	}
 }
 
-const (
-	CallbackBuy           = "buy"
-	CallbackSell          = "sell"
-	CallbackStart         = "start"
-	CallbackConnect       = "connect"
-	CallbackPayment       = "payment"
-	CallbackTrial         = "trial"
-	CallbackActivateTrial = "activate_trial"
-	CallbackReferral      = "referral"
-)
-
 func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -226,6 +215,24 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	}
 }
 
+func (h Handler) resolveConnectButton(lang string) []models.InlineKeyboardButton {
+
+	var inlineKeyboard []models.InlineKeyboardButton
+
+	if config.GetMiniAppURL() != "" {
+		inlineKeyboard = []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(lang, "connect_button"), WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}},
+		}
+	} else {
+		inlineKeyboard = []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(lang, "connect_button"), CallbackData: CallbackConnect},
+		}
+	}
+	return inlineKeyboard
+}
+
 func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCode string) [][]models.InlineKeyboardButton {
 	var inlineKeyboard [][]models.InlineKeyboardButton
 
@@ -236,24 +243,14 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	}
 
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{
-		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
+		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: CallbackBuy}},
 	}...)
 
-	if config.GetMiniAppURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "connect_button"), WebApp: &models.WebAppInfo{
-				URL: config.GetMiniAppURL(),
-			}},
-		})
-	} else {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"},
-		})
-	}
+	inlineKeyboard = append(inlineKeyboard, h.resolveConnectButton(langCode))
 
 	if config.GetReferralDays() > 0 {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: "referral"},
+			{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: CallbackReferral},
 		})
 	}
 
@@ -320,20 +317,25 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 	_, err := h.paymentService.ActivateTrial(ctx, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    callback.Chat.ID,
-		MessageID: callback.ID,
-		Text:      h.translation.GetText(langCode, "trial_activated"),
-		ParseMode: models.ParseModeMarkdown,
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
-				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
-			},
-		},
+		ChatID:      callback.Chat.ID,
+		MessageID:   callback.ID,
+		Text:        h.translation.GetText(langCode, "trial_activated"),
+		ParseMode:   models.ParseModeMarkdown,
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: h.createConnectKeyboard(langCode)},
 	})
 	if err != nil {
 		slog.Error("Error sending /trial message", err)
 	}
+}
+
+func (h Handler) createConnectKeyboard(lang string) [][]models.InlineKeyboardButton {
+	var inlineCustomerKeyboard [][]models.InlineKeyboardButton
+	inlineCustomerKeyboard = append(inlineCustomerKeyboard, h.resolveConnectButton(lang))
+
+	inlineCustomerKeyboard = append(inlineCustomerKeyboard, []models.InlineKeyboardButton{
+		{Text: h.translation.GetText(lang, "back_button"), CallbackData: CallbackStart},
+	})
+	return inlineCustomerKeyboard
 }
 
 func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
