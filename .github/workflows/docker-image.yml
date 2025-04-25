@@ -62,20 +62,22 @@ jobs:
 
       - name: Set commit message
         id: commit-message
+        shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
-            # For tag events
-            TAG_MSG=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
-            if [ -z "$TAG_MSG" ]; then
-              TAG_MSG="Release ${{ github.ref_name }}"
+            if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+              # For tag events
+              TAG_MSG=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
+              if [ -z "$TAG_MSG" ]; then
+                TAG_MSG="Release ${{ github.ref_name }}"
+              fi
+            else
+              # For workflow_dispatch or other events
+              TAG_MSG="${{ github.event.head_commit.message || format('Manual build from {0}', github.ref_name) }}"
             fi
-          else
-            # For workflow_dispatch or other events
-            TAG_MSG=${{ github.event.head_commit.message || format('Manual build from {0}', github.ref_name) }}
-          fi
-          echo "message<<EOF" >> $GITHUB_OUTPUT
-          echo "$TAG_MSG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            echo "message<<EOF" >> $GITHUB_OUTPUT
+            echo "$TAG_MSG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+      
 
       - name: Send Telegram notification
         uses: appleboy/telegram-action@master
