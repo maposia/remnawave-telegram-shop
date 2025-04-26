@@ -7,7 +7,7 @@ purchase and manage subscriptions through Telegram with multiple payment system 
 
 ## Admin commands
 
-- `/sync` - Poll users from remnawave and synchronize them with the database
+- `/sync` - Poll users from remnawave and synchronize them with the database. Remove all users which not present in remnawave.
 
 ## Features
 

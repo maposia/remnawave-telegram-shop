@@ -21,8 +21,12 @@ func NewSyncService(client *remnawave.Client, customerRepository *database.Custo
 
 func (s SyncService) Sync() {
 	ctx := context.Background()
-	pageSize := 100
+	pageSize := 250
 	start := 0
+
+	var telegramIDs []int64
+	telegramIDsSet := make(map[int64]int64)
+	var mappedUsers []database.Customer
 
 	for {
 		usersResponse, err := s.client.GetUsers(ctx, pageSize, start)
@@ -34,10 +38,6 @@ func (s SyncService) Sync() {
 			break
 		}
 
-		var telegramIDs []int64
-		telegramIDsSet := make(map[int64]int64)
-
-		var mappedUsers []database.Customer
 		for _, user := range usersResponse.Users {
 			if user.TelegramId == nil {
 				continue
@@ -59,56 +59,54 @@ func (s SyncService) Sync() {
 			mappedUsers = append(mappedUsers, customer)
 		}
 
-		existingCustomers, err := s.customerRepository.FindByTelegramIds(ctx, telegramIDs)
-		if err != nil {
-			slog.Error("Error while searching users by telegram ids")
-			return
-		}
-		existingMap := make(map[int64]database.Customer)
-		for _, cust := range existingCustomers {
-			existingMap[cust.TelegramID] = cust
-		}
-
-		var toCreate []database.Customer
-		var toUpdate []database.Customer
-
-		for _, cust := range mappedUsers {
-			if _, found := existingMap[cust.TelegramID]; found {
-				cust.CreatedAt = time.Now()
-				toUpdate = append(toUpdate, cust)
-			} else {
-				toCreate = append(toCreate, cust)
-			}
-		}
-
-		err = s.customerRepository.DeleteByNotInTelegramIds(ctx, telegramIDs)
-		if err != nil {
-			slog.Error("Error while deleting users")
-		}
-		slog.Info("Deleted clients which not exist in panel")
-
-		if len(toCreate) > 0 {
-			if err := s.customerRepository.CreateBatch(ctx, toCreate); err != nil {
-				slog.Error("Error while creating users")
-			} else {
-				slog.Info("Created clients", "count", len(toCreate))
-			}
-		}
-
-		if len(toUpdate) > 0 {
-			if err := s.customerRepository.UpdateBatch(ctx, toUpdate); err != nil {
-				slog.Error("Error while updating users")
-			} else {
-				slog.Info("Updated clients", "count", len(toUpdate))
-			}
-		}
-
 		start += len(usersResponse.Users)
 		if start >= usersResponse.Total {
 			break
 		}
 	}
+	existingCustomers, err := s.customerRepository.FindByTelegramIds(ctx, telegramIDs)
+	if err != nil {
+		slog.Error("Error while searching users by telegram ids")
+		return
+	}
+	existingMap := make(map[int64]database.Customer)
+	for _, cust := range existingCustomers {
+		existingMap[cust.TelegramID] = cust
+	}
 
+	var toCreate []database.Customer
+	var toUpdate []database.Customer
+
+	for _, cust := range mappedUsers {
+		if _, found := existingMap[cust.TelegramID]; found {
+			cust.CreatedAt = time.Now()
+			toUpdate = append(toUpdate, cust)
+		} else {
+			toCreate = append(toCreate, cust)
+		}
+	}
+
+	err = s.customerRepository.DeleteByNotInTelegramIds(ctx, telegramIDs)
+	if err != nil {
+		slog.Error("Error while deleting users")
+	}
+	slog.Info("Deleted clients which not exist in panel")
+
+	if len(toCreate) > 0 {
+		if err := s.customerRepository.CreateBatch(ctx, toCreate); err != nil {
+			slog.Error("Error while creating users")
+		} else {
+			slog.Info("Created clients", "count", len(toCreate))
+		}
+	}
+
+	if len(toUpdate) > 0 {
+		if err := s.customerRepository.UpdateBatch(ctx, toUpdate); err != nil {
+			slog.Error("Error while updating users")
+		} else {
+			slog.Info("Updated clients", "count", len(toUpdate))
+		}
+	}
 	slog.Info("Synchronization completed")
 }
 
