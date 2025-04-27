@@ -60,6 +60,7 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 	count, err := h.referralRepository.CountByReferrer(ctx, customer.TelegramID)
 	if err != nil {
 		slog.Error("error counting referrals", err)
+		return
 	}
 	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), count)
 	callbackMessage := update.CallbackQuery.Message.Message
@@ -88,6 +89,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("error finding customer by telegram id", err)
+		return
 	}
 
 	if existingCustomer == nil {
@@ -108,12 +110,14 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 				referrerId, err := strconv.ParseInt(code, 10, 64)
 				if err != nil {
 					slog.Error("error parsing referrer id", err)
+					return
 				}
 				_, err = h.customerRepository.FindByTelegramId(ctx, referrerId)
 				if err == nil {
 					_, err := h.referralRepository.Create(ctx, referrerId, existingCustomer.TelegramID)
 					if err != nil {
 						slog.Error("error creating referral", err)
+						return
 					}
 					slog.Info("referral created", "referrerId", referrerId, "refereeId", existingCustomer.TelegramID)
 				}
@@ -143,6 +147,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	if err != nil {
 		slog.Error("Error sending removing reply keyboard", err)
+		return
 	}
 
 	_, err = b.DeleteMessage(ctx, &bot.DeleteMessageParams{
@@ -152,6 +157,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	if err != nil {
 		slog.Error("Error deleting message", err)
+		return
 	}
 
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
@@ -169,40 +175,20 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 
 func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	callback := update.CallbackQuery
 	langCode := callback.From.LanguageCode
 
-	defer cancel()
-	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, callback.From.ID)
+	existingCustomer, err := h.customerRepository.FindByTelegramId(ctxWithTime, callback.From.ID)
 	if err != nil {
 		slog.Error("error finding customer by telegram id", err)
-	}
-
-	if existingCustomer == nil {
-		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
-			TelegramID: callback.From.ID,
-			Language:   langCode,
-		})
-		if err != nil {
-			slog.Error("error creating customer", err)
-			return
-		}
-		slog.Info("user created", "telegramId", callback.From.ID)
-	} else {
-		updates := map[string]interface{}{
-			"language": langCode,
-		}
-
-		err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
-		if err != nil {
-			slog.Error("Error updating customer", err)
-			return
-		}
+		return
 	}
 
 	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
 
-	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: callback.Message.Message.Chat.ID,
+	_, err = b.EditMessageText(ctxWithTime, &bot.EditMessageTextParams{ChatID: callback.Message.Message.Chat.ID,
 		MessageID: callback.Message.Message.ID,
 		ParseMode: models.ParseModeMarkdown,
 		ReplyMarkup: models.InlineKeyboardMarkup{
@@ -212,6 +198,49 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	})
 	if err != nil {
 		slog.Error("Error sending /start message", err)
+	}
+}
+
+func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		var telegramId int64
+		var langCode string
+		if update.Message != nil {
+			telegramId = update.Message.From.ID
+			langCode = update.Message.From.LanguageCode
+		} else if update.CallbackQuery != nil {
+			telegramId = update.CallbackQuery.From.ID
+			langCode = update.CallbackQuery.From.LanguageCode
+		}
+		existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, telegramId)
+		if err != nil {
+			slog.Error("error finding customer by telegram id", err)
+			return
+		}
+
+		if existingCustomer == nil {
+			existingCustomer, err = h.customerRepository.Create(ctx, &database.Customer{
+				TelegramID: telegramId,
+				Language:   langCode,
+			})
+			if err != nil {
+				slog.Error("error creating customer", err)
+				return
+			}
+			slog.Info("user created", "telegramId", telegramId)
+		} else {
+			updates := map[string]interface{}{
+				"language": langCode,
+			}
+
+			err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
+			if err != nil {
+				slog.Error("Error updating customer", err)
+				return
+			}
+		}
+
+		next(ctx, b, update)
 	}
 }
 
@@ -314,7 +343,8 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 		return
 	}
 	callback := update.CallbackQuery.Message.Message
-	_, err := h.paymentService.ActivateTrial(ctx, update.CallbackQuery.From.ID)
+	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
+	_, err := h.paymentService.ActivateTrial(ctxWithUsername, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      callback.Chat.ID,
@@ -427,7 +457,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
-		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackBuy},
 	})
 
 	_, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
@@ -465,16 +495,19 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", err)
+		return
 	}
 	if customer == nil {
 		slog.Error("customer not exist", "chatID", callback.Chat.ID, "error", err)
 		return
 	}
 
-	paymentURL, err := h.paymentService.CreatePurchase(ctx, price, month, customer, invoiceType)
+	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
+	paymentURL, err := h.paymentService.CreatePurchase(ctxWithUsername, price, month, customer, invoiceType)
 
 	if err != nil {
 		slog.Error("Error creating payment", err)
+		return
 	}
 
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -501,9 +534,11 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 	customer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", err)
+		return
 	}
 	if customer == nil {
 		slog.Error("customer not exist", "chatID", update.Message.Chat.ID, "error", err)
+		return
 	}
 
 	langCode := update.Message.From.LanguageCode
@@ -533,9 +568,11 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", err)
+		return
 	}
 	if customer == nil {
 		slog.Error("customer not exist", "chatID", callback.Chat.ID, "error", err)
+		return
 	}
 
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -571,12 +608,16 @@ func (h Handler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, upd
 }
 
 func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	purchaseId, err := strconv.Atoi(update.Message.SuccessfulPayment.InvoicePayload)
+	payload := strings.Split(update.Message.SuccessfulPayment.InvoicePayload, "&")
+	purchaseId, err := strconv.Atoi(payload[0])
+	username := payload[1]
 	if err != nil {
 		slog.Error("Error parsing purchase id", err)
+		return
 	}
 
-	err = h.paymentService.ProcessPurchaseById(int64(purchaseId))
+	ctxWithUsername := context.WithValue(ctx, "username", username)
+	err = h.paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseId))
 	if err != nil {
 		slog.Error("Error processing purchase", err)
 	}

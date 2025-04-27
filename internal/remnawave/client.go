@@ -121,6 +121,10 @@ func (r *Client) updateUser(ctx context.Context, existingUser *User, trafficLimi
 		TrafficLimitBytes: trafficLimit,
 	}
 
+	if ctx.Value("username") != nil {
+		userUpdate.Description = ctx.Value("username").(string)
+	}
+
 	jsonData, err := json.Marshal(userUpdate)
 	if err != nil {
 		slog.Error("Error while converting to JSON", "error", err)
@@ -184,6 +188,10 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		TelegramId:           telegramId,
 		ExpireAt:             expireAt,
 		TrafficLimitBytes:    trafficLimit,
+	}
+
+	if ctx.Value("username") != nil {
+		userCreate.Description = ctx.Value("username").(string)
 	}
 
 	jsonData, err := json.Marshal(userCreate)
