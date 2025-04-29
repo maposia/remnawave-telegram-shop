@@ -7,8 +7,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-#    volumes:
-#      - ./translations:/translations
+    volumes:
+      - ./translations:/translations
 
   db:
     image: postgres:17
