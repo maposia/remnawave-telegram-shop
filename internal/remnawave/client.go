@@ -6,6 +6,7 @@ import (
 	"fmt"
 	remapi "github.com/Jolymmiles/remnawave-api-go/api"
 	"github.com/google/uuid"
+	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
 	"strconv"
@@ -76,7 +77,7 @@ func (r *Client) GetNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto
 		return nil, err
 	}
 
-	fmt.Println("Тип ответа:", fmt.Sprintf("%T", resp))
+	slog.Info("Тип ответа:", fmt.Sprintf("%T", resp))
 
 	return nil, nil
 }
