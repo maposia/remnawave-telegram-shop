@@ -77,7 +77,7 @@ func (r *Client) GetNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto
 		return nil, err
 	}
 
-	slog.Info("Тип ответа:", fmt.Sprintf("%T", resp))
+	slog.Info("Тип ответа:", resp)
 
 	return nil, nil
 }
