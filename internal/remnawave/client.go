@@ -69,6 +69,18 @@ func (r *Client) GetUsers(ctx context.Context) (*[]remapi.UserDto, error) {
 	return &users, nil
 }
 
+func (r *Client) getNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto, error) {
+
+	resp, err := r.client.NodesControllerGetAllNodes(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Тип ответа:", fmt.Sprintf("%T", resp))
+
+	return nil, nil
+}
+
 func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int) (*remapi.UserDto, error) {
 	resp, err := r.client.UsersControllerGetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{TelegramId: strconv.FormatInt(telegramId, 10)})
 	if err != nil {
