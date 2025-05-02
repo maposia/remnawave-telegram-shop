@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/robfig/cron/v3"
 	"log"
 	"log/slog"
 	"os"
@@ -19,12 +23,6 @@ import (
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"strconv"
 	"strings"
-
-	"github.com/biter777/countries"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -55,7 +53,6 @@ func main() {
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
-	initCountries(ctx, remnawaveClient)
 	yookasaClient := yookasa.NewClient(config.YookasaUrl(), config.YookasaShopId(), config.YookasaSecretKey())
 	b, err := bot.New(config.TelegramToken(), bot.WithWorkers(3))
 	if err != nil {
@@ -160,51 +157,6 @@ func setupSubscriptionNotifier(subService *notification.SubscriptionService) *cr
 		panic(err)
 	}
 	return c
-}
-
-func initCountries(ctx context.Context, remnawaveClient *remnawave.Client) {
-	nodes, err := remnawaveClient.GetNodes(ctx)
-	if err != nil {
-		panic("error getting nodes")
-	}
-
-	uniqueCountries := make(map[string]string)
-
-	for _, node := range *nodes {
-		// Проверяем, что нода активна и онлайн
-		if !node.IsDisabled && node.IsNodeOnline {
-			// Проверяем, входит ли страна в список разрешенных
-			if config.IsCountryAllowed(node.CountryCode) {
-				country := countries.ByName(node.CountryCode)
-				countryText := fmt.Sprintf("%s %s", country.Emoji(), node.CountryCode)
-				uniqueCountries[node.CountryCode] = countryText
-			}
-		}
-	}
-
-	// Если после фильтрации не осталось стран, выводим предупреждение
-	if len(uniqueCountries) == 0 {
-		slog.Warn("No countries match the filter criteria or no active nodes found",
-			"allowedCountries", config.AllowedCountries())
-
-		// Повторяем цикл, но без проверки разрешенных стран (показываем все страны)
-		for _, node := range *nodes {
-			if !node.IsDisabled && node.IsNodeOnline {
-				country := countries.ByName(node.CountryCode)
-				countryText := fmt.Sprintf("%s %s", country.Emoji(), node.CountryCode)
-				uniqueCountries[node.CountryCode] = countryText
-			}
-		}
-
-		slog.Info("Showing all available countries as fallback",
-			"countriesCount", len(uniqueCountries))
-	} else {
-		slog.Info("Countries filtered successfully",
-			"allowedCountries", config.AllowedCountries(),
-			"activeCountriesCount", len(uniqueCountries))
-	}
-
-	config.SetCountries(uniqueCountries)
 }
 
 func initDatabase(ctx context.Context, connString string) (*pgxpool.Pool, error) {
