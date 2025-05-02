@@ -6,7 +6,6 @@ import (
 	"fmt"
 	remapi "github.com/Jolymmiles/remnawave-api-go/api"
 	"github.com/google/uuid"
-	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
 	"strconv"
@@ -77,9 +76,7 @@ func (r *Client) GetNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto
 		return nil, err
 	}
 
-	slog.Info("Тип ответа:", resp)
-
-	return nil, nil
+	return &resp, nil
 }
 
 func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int) (*remapi.UserDto, error) {
