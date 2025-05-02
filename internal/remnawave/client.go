@@ -69,7 +69,7 @@ func (r *Client) GetUsers(ctx context.Context) (*[]remapi.UserDto, error) {
 	return &users, nil
 }
 
-func (r *Client) getNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto, error) {
+func (r *Client) GetNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto, error) {
 
 	resp, err := r.client.NodesControllerGetAllNodes(ctx)
 	if err != nil {

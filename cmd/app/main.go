@@ -75,7 +75,7 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository)
+	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, remnawaveClient, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {

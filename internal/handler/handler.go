@@ -8,6 +8,7 @@ import (
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/yookasa"
@@ -23,6 +24,7 @@ type Handler struct {
 	customerRepository *database.CustomerRepository
 	purchaseRepository *database.PurchaseRepository
 	cryptoPayClient    *cryptopay.Client
+	remnawaveClient    *remnawave.Client
 	yookasaClient      *yookasa.Client
 	translation        *translation.Manager
 	paymentService     *payment.PaymentService
@@ -35,6 +37,7 @@ func NewHandler(
 	paymentService *payment.PaymentService,
 	translation *translation.Manager,
 	customerRepository *database.CustomerRepository,
+	remnawaveClient *remnawave.Client,
 	purchaseRepository *database.PurchaseRepository,
 	cryptoPayClient *cryptopay.Client,
 	yookasaClient *yookasa.Client, referralRepository *database.ReferralRepository) *Handler {
@@ -43,6 +46,7 @@ func NewHandler(
 		paymentService:     paymentService,
 		customerRepository: customerRepository,
 		purchaseRepository: purchaseRepository,
+		remnawaveClient:    remnawaveClient,
 		cryptoPayClient:    cryptoPayClient,
 		yookasaClient:      yookasaClient,
 		translation:        translation,
@@ -86,6 +90,14 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	langCode := update.Message.From.LanguageCode
+
+	nodes, err := h.remnawaveClient.GetNodes(ctx)
+	if err != nil {
+		slog.Error("Ошибка при получении нод: %v\n", err)
+		return
+	}
+	slog.Info("nodes", "nodes", nodes)
+
 	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("error finding customer by telegram id", err)
