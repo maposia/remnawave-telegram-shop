@@ -9,6 +9,8 @@ github.com/Jolymmiles/remnawave-api-go v1.5.15 h1:9GdPCJge40uKkFBbnHbvXDDqAZst5m
 github.com/Jolymmiles/remnawave-api-go v1.5.15/go.mod h1:6+W+0YRL57ruTZfVeX5mIV8Sdfwx4dqEoXhEdP/RZrI=
 github.com/Jolymmiles/remnawave-api-go v1.5.16 h1:wPBGSTaEK+hcHAu1gpgXgj8eB/0gG2XdcPO6eXeaU1Q=
 github.com/Jolymmiles/remnawave-api-go v1.5.16/go.mod h1:6+W+0YRL57ruTZfVeX5mIV8Sdfwx4dqEoXhEdP/RZrI=
+github.com/Jolymmiles/remnawave-api-go v1.5.18 h1:P2pqPlV9qQpUr5Yeb9bI0XEAvzdA/SDpA846PK5/9lE=
+github.com/Jolymmiles/remnawave-api-go v1.5.18/go.mod h1:6+W+0YRL57ruTZfVeX5mIV8Sdfwx4dqEoXhEdP/RZrI=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/Masterminds/squirrel v1.5.4 h1:uUcX/aBc8O7Fg9kaISIUsHXdKuqehiXAMQTYX8afzqM=
 github.com/Masterminds/squirrel v1.5.4/go.mod h1:NNaOrjSoIDfDA40n7sr2tPNZRfjzjA400rg+riTZj10=

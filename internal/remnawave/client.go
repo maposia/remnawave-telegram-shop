@@ -6,6 +6,7 @@ import (
 	"fmt"
 	remapi "github.com/Jolymmiles/remnawave-api-go/api"
 	"github.com/google/uuid"
+	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
 	"strconv"
@@ -69,14 +70,17 @@ func (r *Client) GetUsers(ctx context.Context) (*[]remapi.UserDto, error) {
 	return &users, nil
 }
 
-func (r *Client) GetNodes(ctx context.Context) (*[]remapi.GetAllNodesResponseDto, error) {
-
+func (r *Client) GetNodes(ctx context.Context) ([]remapi.GetAllNodesResponseDto, error) {
 	resp, err := r.client.NodesControllerGetAllNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &resp, nil
+	response := resp.GetResponse()
+
+	slog.Info(fmt.Sprintf("Found %d nodes", len(response)))
+
+	return nil, nil
 }
 
 func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int) (*remapi.UserDto, error) {
