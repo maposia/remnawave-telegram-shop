@@ -1,12 +1,12 @@
 package config
 
 import (
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/joho/godotenv"
 )
 
 type config struct {
@@ -38,7 +38,7 @@ type config struct {
 	adminTelegramId        int64
 	trialDays              int
 	trialTrafficLimit      int
-	inboundUUIDs           map[string]string
+	inboundUUIDs           map[uuid.UUID]uuid.UUID
 	referralDays           int
 	miniApp                string
 }
@@ -53,7 +53,7 @@ func GetMiniAppURL() string {
 	return conf.miniApp
 }
 
-func InboundUUIDs() map[string]string {
+func InboundUUIDs() map[uuid.UUID]uuid.UUID {
 	return conf.inboundUUIDs
 }
 
@@ -304,14 +304,18 @@ func InitConfig() {
 	inboundUUIDsStr := os.Getenv("INBOUND_UUIDS")
 	if inboundUUIDsStr != "" {
 		uuids := strings.Split(inboundUUIDsStr, ",")
-		var inboundsMap = make(map[string]string)
+		var inboundsMap = make(map[uuid.UUID]uuid.UUID)
 		for _, value := range uuids {
-			inboundsMap[value] = value
+			uuid, err := uuid.Parse(value)
+			if err != nil {
+				panic(err)
+			}
+			inboundsMap[uuid] = uuid
 		}
 		conf.inboundUUIDs = inboundsMap
 		slog.Info("Loaded inbound UUIDs", "uuids", conf.inboundUUIDs)
 	} else {
-		conf.inboundUUIDs = map[string]string{}
+		conf.inboundUUIDs = map[uuid.UUID]uuid.UUID{}
 		slog.Info("No inbound UUIDs specified, all will be used")
 	}
 }
