@@ -1,3 +1,4 @@
+
 name: Build docker image
 
 on:
@@ -8,7 +9,7 @@ on:
 
 jobs:
   build-docker-image:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
@@ -23,22 +24,23 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Add this step to set up BuildX
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:latest
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/remnawave-telegram-shop-bot
-          # Set up proper tagging strategy
           tags: |
-            # Always include latest tag
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-            # Use semver tags when Git tag is in semver format
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # Use the short SHA for non-tag builds
             type=sha,format=short,prefix=
-            # Include the tag name if it's a tag-triggered build
             type=ref,event=tag
 
       - name: Set up Docker Buildx
@@ -52,6 +54,3 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            COMMIT=${{ github.sha }}
